@@ -1,7 +1,6 @@
 import admin from 'firebase-admin';
 import User from '../models/user.js';
 
-// Middleware to verify Firebase ID token
 const verifyToken = async (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -11,24 +10,23 @@ const verifyToken = async (req, res, next) => {
     const idToken = authHeader.split('Bearer ')[1];
     try {
         const decodedToken = await admin.auth().verifyIdToken(idToken);
-        req.user = decodedToken; // Attach user data to request
+        req.user = decodedToken; 
         next();
     } catch (error) {
         return res.status(401).json({ error: 'Unauthorized: Invalid token' });
     }
 };
 
-// Signup: Create user in Firebase and MongoDB (Email/Password)
 export const signup = async (req, res) => {
     const { email, password, name } = req.body;
     try {
-        // Create user in Firebase
+        
         const userRecord = await admin.auth().createUser({
             email,
             password
         });
 
-        // Save user data in MongoDB
+       
         const user = new User({
             firebaseUid: userRecord.uid,
             email,
@@ -42,21 +40,20 @@ export const signup = async (req, res) => {
     }
 };
 
-// Google Sign-In: Verify Google ID token and save user in MongoDB
 export const googleSignIn = async (req, res) => {
     const { idToken } = req.body;
     try {
-        // Verify Google ID token
+        
         const decodedToken = await admin.auth().verifyIdToken(idToken);
         const { uid, email, name } = decodedToken;
 
-        // Check if user exists in MongoDB, create if not
+        
         let user = await User.findOne({ firebaseUid: uid });
         if (!user) {
             user = new User({
                 firebaseUid: uid,
-                email: email || `user_${uid}@mernapp.com`, // Fallback email if none provided
-                name: name || 'Google User' // Fallback name
+                email: email || `user_${uid}@mernapp.com`, 
+                name: name || 'Google User'
             });
             await user.save();
         }
@@ -67,15 +64,12 @@ export const googleSignIn = async (req, res) => {
     }
 };
 
-// Login: Verify token and return user data (Email/Password)
 export const login = async (req, res) => {
     const { idToken } = req.body;
     try {
-        // Verify Firebase ID token
         const decodedToken = await admin.auth().verifyIdToken(idToken);
         const firebaseUid = decodedToken.uid;
 
-        // Fetch user data from MongoDB
         const user = await User.findOne({ firebaseUid });
         if (!user) {
             return res.status(404).json({ error: 'User not found in database' });
@@ -87,7 +81,6 @@ export const login = async (req, res) => {
     }
 };
 
-// Get Profile: Protected route
 export const getProfile = [verifyToken, async (req, res) => {
     try {
         const user = await User.findOne({ firebaseUid: req.user.uid });
